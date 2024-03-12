@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import UserForm from "./components/UserForm";
 import WebcamCapture from "./components/WebcamCapture";
 import UserConfirmation from "./components/UserConfirmation"; 
-
+import { Routes, Route } from "react-router-dom";
 function App() {
   const [step, setStep] = useState(1);
   const [userData, setUserData] = useState({
@@ -17,9 +17,9 @@ function App() {
   };
 
   const handleCapture = (imageSrc) => {
-    console.log(imageSrc); 
+     
     setUserData({ ...userData, photo: imageSrc });
-    console.log(userData); 
+    
     setStep(3);
   };
 
@@ -40,11 +40,13 @@ function App() {
 
   return (
     <div className={`container ${fullScreen ? 'full-screen' : 'three-quarters-screen'}`}>
-      {step === 1 && <UserForm onSubmit={handleUserFormSubmit} />}
-      {step === 2 && <WebcamCapture onCapture={handleCapture} />}
-      {step === 3 && (
-        <UserConfirmation data={userData} onRestart={handleRestart} />
-      )}<br></br>
+       <Routes>
+        <Route path="/" element={
+          step === 1 ? <UserForm onSubmit={handleUserFormSubmit} /> : 
+          step === 2 ? <WebcamCapture onCapture={handleCapture} /> : 
+          <UserConfirmation data={userData} onRestart={handleRestart} />
+        }/>
+      </Routes><br></br>
        <button onClick={toggleScreenMode}>Switch mode</button>
     </div>
   );

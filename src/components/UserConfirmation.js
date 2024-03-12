@@ -1,7 +1,7 @@
 import React from 'react';
 
 const UserConfirmation = ({ data, onRestart }) => {
-    console.log(data.photo)
+    
   return (
     <div>
       <h2>Data confirmation</h2>
