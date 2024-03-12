@@ -44,13 +44,13 @@ const WebcamCapture = ({ onCapture }) => {
         ref={webcamRef}
         screenshotFormat="image/jpeg"
         style={{ maxWidth: '100%', maxHeight: '300px' }} 
-      />
-      <button onClick={capture}>Сделать фото</button>
+      /><br></br>
+      <button onClick={capture}>Make a photo</button>
       <input type="file" onChange={handleImageChange} />
       {image && (
         <>
-          <img src={image} alt="Capture" style={{ maxWidth: '100%', maxHeight: '300px', marginTop: '10px' }} />
-          {showConfirmButton && <button onClick={handleConfirm}>Подтвердить фото</button>}
+          <img src={image} alt="Capture" style={{ maxWidth: '100%', maxHeight: '300px', marginTop: '10px' }} /><br></br>
+          {showConfirmButton && <button onClick={handleConfirm}>Confirm photo</button>}
         </>
       )}
     </>

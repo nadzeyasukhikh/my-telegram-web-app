@@ -44,8 +44,8 @@ function App() {
       {step === 2 && <WebcamCapture onCapture={handleCapture} />}
       {step === 3 && (
         <UserConfirmation data={userData} onRestart={handleRestart} />
-      )}
-       <button onClick={toggleScreenMode}>Переключить режим</button>
+      )}<br></br>
+       <button onClick={toggleScreenMode}>Switch mode</button>
     </div>
   );
 }

@@ -17,7 +17,7 @@ function UserForm({ onSubmit }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <label htmlFor="name">Имя:</label>
+      <label htmlFor="name">Name:</label>
       <input
         id="name"
         type="text"
@@ -25,7 +25,7 @@ function UserForm({ onSubmit }) {
         onChange={(e) => setNameValue(e.target.value)}
       />
 
-      <label htmlFor="dateOfBirth">Дата рождения:</label>
+      <label htmlFor="dateOfBirth">Date of Birth:</label>
       <input
         id="dateOfBirth"
         type="date"
@@ -33,7 +33,7 @@ function UserForm({ onSubmit }) {
         onChange={(e) => setDateOfBirthValue(e.target.value)}
       />
 
-      <button type="submit">Отправить</button>
+      <button type="submit">Submit</button>
     </form>
   );
 }
