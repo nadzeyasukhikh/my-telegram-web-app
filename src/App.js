@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import UserForm from "./components/UserForm";
 import WebcamCapture from "./components/WebcamCapture";
-import UserConfirmation from "./components/UserConfirmation";
-import { Routes, Route, Navigate } from "react-router-dom";
-
+import UserConfirmation from "./components/UserConfirmation"; 
+import { Routes, Route } from "react-router-dom";
 function App() {
   const [step, setStep] = useState(1);
   const [userData, setUserData] = useState({
@@ -14,23 +13,25 @@ function App() {
 
   const handleUserFormSubmit = (formData) => {
     setUserData({ ...userData, ...formData });
-    setStep(2); // Переходим на следующий шаг после получения данных от пользователя
+    setStep(2);
   };
 
   const handleCapture = (imageSrc) => {
+     
     setUserData({ ...userData, photo: imageSrc });
-    setStep(3); // Переходим на следующий шаг после получения фотографии
+    
+    setStep(3);
   };
 
   const handleRestart = () => {
-    setStep(1); // Сбрасываем шаг на начальное значение
+    setStep(1);
     setUserData({
       name: "",
       dateOfBirth: "",
       photo: null,
     });
   };
-
+  
   const [fullScreen, setFullScreen] = useState(true);
 
   const toggleScreenMode = () => {
@@ -39,19 +40,14 @@ function App() {
 
   return (
     <div className={`container ${fullScreen ? 'full-screen' : 'three-quarters-screen'}`}>
-      <Routes>
-        <Route path="/" element={<UserForm onSubmit={handleUserFormSubmit} />} />
-        <Route path="/capture" element={<WebcamCapture onCapture={handleCapture} />} />
-        <Route
-          path="/confirmation"
-          element={<UserConfirmation data={userData} onRestart={handleRestart} />}
-        />
-        {/* Переход на следующий шаг после получения данных от бота */}
-        {step === 2 && <Navigate to="/capture" />}
-        {step === 3 && <Navigate to="/confirmation" />}
-      </Routes>
-      <br></br>
-      <button onClick={toggleScreenMode}>Switch mode</button>
+       <Routes>
+        <Route path="/" element={
+          step === 1 ? <UserForm onSubmit={handleUserFormSubmit} /> : 
+          step === 2 ? <WebcamCapture onCapture={handleCapture} /> : 
+          <UserConfirmation data={userData} onRestart={handleRestart} />
+        }/>
+      </Routes><br></br>
+       <button onClick={toggleScreenMode}>Switch mode</button>
     </div>
   );
 }
