@@ -36,7 +36,7 @@ bot.on("text", (ctx) => {
     case "awaiting_dob":
       ctx.session.dob = ctx.message.text;
       console.log(`Дата рождения получена: ${ctx.session.dob}`);
-      ctx.replyWithHTML(`Спасибо, ${ctx.session.name}! Теперь ты можешь перейти в мое приложение нажимая кнопу open ниже `);
+      ctx.replyWithHTML(`Спасибо, ${ctx.session.name}! Теперь ты можешь перейти в мое приложение нажимая кнопку "open" ниже `);
       
       delete ctx.session.stage;
       break;
