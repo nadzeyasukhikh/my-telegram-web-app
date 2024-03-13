@@ -5,7 +5,7 @@ import UserConfirmation from "./components/UserConfirmation";
 import { Routes, Route, useNavigate } from "react-router-dom";
 
 function App() {
-  const navigate = useNavigate(); // Получаем функцию навигации
+  const navigate = useNavigate(); 
 
   const [userData, setUserData] = useState({
     name: "",
@@ -15,13 +15,13 @@ function App() {
 
   const handleUserFormSubmit = (formData) => {
     setUserData({ ...userData, ...formData });
-    // Переходим на следующий этап после отправки данных формы
+    
     navigate("/capture");
   };
 
   const handleCapture = (imageSrc) => {   
     setUserData({ ...userData, photo: imageSrc });
-    // Переходим на следующий этап после получения фотографии
+   
     navigate("/confirmation");
   };
 
@@ -31,7 +31,7 @@ function App() {
       dateOfBirth: "",
       photo: null,
     });
-    // Возвращаемся на первый этап после перезапуска процесса
+  
     navigate("/");
   };
 
