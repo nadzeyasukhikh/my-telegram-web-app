@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import UserForm from "./components/UserForm";
 import WebcamCapture from "./components/WebcamCapture";
 import UserConfirmation from "./components/UserConfirmation"; 
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 
 function App() {
   const navigate = useNavigate(); // Получаем функцию навигации
@@ -40,6 +40,18 @@ function App() {
 const toggleScreenMode = () => {
   setFullScreenMode(!fullScreenMode);
 };
+const location = useLocation();
+
+  useEffect(() => {
+    // Проверяем, содержит ли текущий URL параметр, который указывает на необходимость открытия во всплывающем окне
+    const queryParams = new URLSearchParams(location.search);
+    const openInPopup = queryParams.get("openInPopup");
+
+    if (openInPopup) {
+      // Открываем текущий URL во всплывающем окне
+      window.open(window.location.href, "PopupWindow", "width=600,height=600");
+    }
+  }, [location.search]);
 
   return (
     <div className={`container ${fullScreenMode ? 'full-screen' : 'three-quarters-screen'}`}>

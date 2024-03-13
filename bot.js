@@ -36,7 +36,7 @@ bot.on("text", (ctx) => {
     case "awaiting_dob":
       ctx.session.dob = ctx.message.text;
       console.log(`Дата рождения получена: ${ctx.session.dob}`);
-      ctx.reply(`Спасибо, ${ctx.session.name}! Теперь ты можешь перейти в приложение: https://my-telegram-web-app.vercel.app/`);
+      ctx.reply(`Спасибо, ${ctx.session.name}! Теперь ты можешь перейти в приложение: https://my-telegram-web-app.vercel.app/?openInPopup=true`);
       // Очистка только стадии сессии перед следующим шагом
       delete ctx.session.stage;
       break;
