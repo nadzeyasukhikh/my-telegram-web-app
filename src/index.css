@@ -12,14 +12,11 @@ body, html {
   margin: auto; 
 }
 .full-screen {
-  width: 100%; 
-  max-width: 100%; 
+  width: 100%;
 }
 
-
 .three-quarters-screen {
-  max-width: 75%; 
-  margin: auto; 
+  width: 75%; /* или другая желаемая ширина */
 }
 button {
   background-color: #0088cc; 

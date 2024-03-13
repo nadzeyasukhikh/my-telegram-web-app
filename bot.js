@@ -13,18 +13,15 @@ bot.use((ctx, next) => {
 });
 
 bot.start((ctx) => {
+  ctx.session = {}; // Инициализируем сессию, если она не существует
   ctx.reply("Привет! Как тебя зовут?");
-  // Проверяем наличие объекта ctx.session и инициализируем его, если он еще не определен
-  if (!ctx.session) {
-    ctx.session = {};
-  }
   ctx.session.stage = "awaiting_name";
 });
 
 bot.on("text", (ctx) => {
-  // Проверяем наличие объекта ctx.session и инициализируем его, если он еще не определен
   if (!ctx.session) {
-    ctx.session = {};
+    console.log("Ошибка: сессия не найдена.");
+    return ctx.reply("Произошла ошибка с сессией, попробуйте начать заново с команды /start.");
   }
 
   console.log(ctx.session); // Логируем текущее состояние сессии
@@ -39,7 +36,7 @@ bot.on("text", (ctx) => {
     case "awaiting_dob":
       ctx.session.dob = ctx.message.text;
       console.log(`Дата рождения получена: ${ctx.session.dob}`);
-      ctx.reply(`Спасибо, ${ctx.session.name}! Теперь ты можешь перейти на следующий шаг: /next_step`);
+      ctx.reply(`Спасибо, ${ctx.session.name}! Теперь ты можешь перейти в приложение: https://my-telegram-web-app.vercel.app/`);
       // Очистка только стадии сессии перед следующим шагом
       delete ctx.session.stage;
       break;
@@ -47,13 +44,6 @@ bot.on("text", (ctx) => {
       console.log("Неизвестный этап: ", ctx.session.stage);
       ctx.reply("Я не уверен, что от меня требуется. Пожалуйста, начни сначала с команды /start.");
   }
-});
-
-// Обработка команды для перехода на следующий шаг приложения
-bot.command("next_step", (ctx) => {
-  ctx.reply("Переход на следующий шаг приложения...");
-  // Очистка только стадии сессии перед следующим шагом
-  delete ctx.session.stage;
 });
 
 bot.launch();
