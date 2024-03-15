@@ -43,7 +43,8 @@ bot.on("text", async (ctx) => {
           Markup.button.callback("Кофе", "drink_coffee"),
           Markup.button.callback("Сок", "drink_juice"),
           Markup.button.callback("Вода", "drink_water"),
-          Markup.button.callback("Другое", "drink_other")
+          Markup.button.callback("Другое", "drink_other"),
+          Markup.button.callback("Ок", "confirm_drinks")
         ])
       );
 
@@ -56,27 +57,8 @@ bot.on("text", async (ctx) => {
   }
 });
 
-bot.action("drink_tea", async (ctx) => {
-  await handleDrinkSelection(ctx, "Чай");
-});
-
-bot.action("drink_coffee", async (ctx) => {
-  await handleDrinkSelection(ctx, "Кофе");
-});
-
-bot.action("drink_juice", async (ctx) => {
-  await handleDrinkSelection(ctx, "Сок");
-});
-
-bot.action("drink_water", async (ctx) => {
-  await handleDrinkSelection(ctx, "Вода");
-});
-
-bot.action("drink_other", async (ctx) => {
-  await handleDrinkSelection(ctx, "Другое");
-});
-
-async function handleDrinkSelection(ctx, drink) {
+bot.action(["drink_tea", "drink_coffee", "drink_juice", "drink_water", "drink_other"], async (ctx) => {
+  const drink = ctx.callbackQuery.data.split("_")[1];
   if (!ctx.session.drinks) {
     ctx.session.drinks = [drink];
   } else {
@@ -84,34 +66,22 @@ async function handleDrinkSelection(ctx, drink) {
       ctx.session.drinks.push(drink);
     }
   }
-
-  const drinksText = ctx.session.drinks.join(", ");
-  await ctx.reply(`Вы выбрали ${drink}. Текущий выбор: ${drinksText}`, 
-    Markup.inlineKeyboard([
-      Markup.button.callback("Добавить ещё напиток", "add_drink"),
-      Markup.button.callback("Ок", "confirm_drinks")
-    ])
-  );
-}
-
-bot.action("add_drink", async (ctx) => {
-  await ctx.replyWithHTML(`Теперь выберите ещё напиток:`,
-    Markup.inlineKeyboard([
-      Markup.button.callback("Чай", "drink_tea"),
-      Markup.button.callback("Кофе", "drink_coffee"),
-      Markup.button.callback("Сок", "drink_juice"),
-      Markup.button.callback("Вода", "drink_water"),
-      Markup.button.callback("Другое", "drink_other")
-    ])
-  );
 });
 
 bot.action("confirm_drinks", async (ctx) => {
+  if (!ctx.session.drinks || ctx.session.drinks.length === 0) {
+    await ctx.reply("Вы не выбрали ни одного напитка.");
+    return;
+  }
+
   const drinksTextConfirmed = ctx.session.drinks.join(", ");
+  console.log(`Вы выбрали ${drinksTextConfirmed}`)
   await ctx.reply(`Вы выбрали ${drinksTextConfirmed}. Теперь вы можете перейти в мое приложение, нажав кнопку "open" или начать общение с GPT-ботом, нажав кнопку "GPT-бот".`,
+  
     Markup.inlineKeyboard([
       Markup.button.callback("GPT-бот", "call_gpt_bot")
     ])
+    
   );
   delete ctx.session.stage;
 });
