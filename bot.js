@@ -1,6 +1,13 @@
 require("dotenv").config();
 const { Telegraf, session, Markup } = require("telegraf");
 const axios = require("axios");
+const admin = require("firebase-admin");
+
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+});
+
+const db = admin.firestore();
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -13,18 +20,30 @@ bot.use((ctx, next) => {
   return next();
 });
 
+bot.command("gpt", async (ctx) => {
+  await sendToGPT(ctx);
+  ctx.session.stage = "gpt_bot_mode"; // Добавим этот шаг, чтобы обозначить, что теперь мы в режиме GPT-бота
+});
+
 bot.start((ctx) => {
   ctx.session = {};
   ctx.reply("Привет! Как тебя зовут?");
   ctx.session.stage = "awaiting_name";
+  
 });
 
+
+
+
 bot.on("text", async (ctx) => {
+  
+
   if (!ctx.session) {
     console.log("Ошибка: сессия не найдена.");
     return ctx.reply("Произошла ошибка с сессией, попробуйте начать заново с команды /start.");
   }
 
+ 
   switch (ctx.session.stage) {
     case "awaiting_name":
       ctx.session.name = ctx.message.text;
@@ -36,6 +55,7 @@ bot.on("text", async (ctx) => {
     case "awaiting_dob":
       ctx.session.dob = ctx.message.text;
       console.log(`Дата рождения получена: ${ctx.session.dob}`);
+      await saveUserData(ctx.from.id, ctx.session.name, ctx.session.dob);
 
       await ctx.replyWithHTML(`Спасибо, ${ctx.session.name}! Теперь выберите, какие напитки вы предпочитаете (можно выбрать несколько):`,
         Markup.inlineKeyboard([
@@ -76,7 +96,7 @@ bot.action("confirm_drinks", async (ctx) => {
 
   const drinksTextConfirmed = ctx.session.drinks.join(", ");
   console.log(`Вы выбрали ${drinksTextConfirmed}`)
-  await ctx.reply(`Вы выбрали ${drinksTextConfirmed}. Теперь вы можете перейти в мое приложение, нажав кнопку "open" или начать общение с GPT-ботом, нажав кнопку "GPT-бот".`,
+  await ctx.reply(`Вы выбрали ${drinksTextConfirmed}. Теперь вы можете начать общение с GPT-ботом, нажав кнопку "GPT-бот".`,
   
     Markup.inlineKeyboard([
       Markup.button.callback("GPT-бот", "call_gpt_bot")
@@ -86,16 +106,31 @@ bot.action("confirm_drinks", async (ctx) => {
   delete ctx.session.stage;
 });
 
+
+
+
+
 bot.action("call_gpt_bot", async (ctx) => {
   await sendToGPT(ctx);
 });
 
-
+let lastRequestTime = 0;
+async function saveUserData(userId, name, dob) {
+  try {
+    await db.collection("users").doc(userId.toString()).set({
+      name: name,
+      dob: dob
+    });
+    console.log("Данные пользователя сохранены в Firebase.");
+  } catch (error) {
+    console.error("Ошибка при сохранении данных пользователя в Firebase:", error);
+  }
+}
 
 async function sendToGPT(ctx) {
   const GPT_BOT_API_URL = 'https://api.openai.com/v1/chat/completions';
-  const MIN_REQUEST_INTERVAL = 20000; // 20 seconds
-  let lastRequestTime = 0;
+  const MIN_REQUEST_INTERVAL = 5000; 
+  
 
   const currentTime = new Date().getTime();
   if (currentTime - lastRequestTime < MIN_REQUEST_INTERVAL) {
