@@ -2,6 +2,7 @@ require("dotenv").config();
 const { Telegraf, session, Markup } = require("telegraf");
 const axios = require("axios");
 const admin = require("firebase-admin");
+const { v4: uuidv4 } = require('uuid');
 
 admin.initializeApp({
   credential: admin.credential.applicationDefault(),
@@ -22,110 +23,188 @@ bot.use((ctx, next) => {
 
 bot.command("gpt", async (ctx) => {
   await sendToGPT(ctx);
-  ctx.session.stage = "gpt_bot_mode"; // Добавим этот шаг, чтобы обозначить, что теперь мы в режиме GPT-бота
+  ctx.session.stage = "gpt_bot_mode";
 });
 
-bot.start((ctx) => {
-  ctx.session = {};
-  ctx.reply("Привет! Как тебя зовут?");
-  ctx.session.stage = "awaiting_name";
+bot.command('start', async (ctx) => {
+  ctx.session = ctx.session || {};
   
-});
-
-
-
-
-bot.on("text", async (ctx) => {
-  
-
-  if (!ctx.session) {
-    console.log("Ошибка: сессия не найдена.");
-    return ctx.reply("Произошла ошибка с сессией, попробуйте начать заново с команды /start.");
-  }
-
- 
-  switch (ctx.session.stage) {
-    case "awaiting_name":
-      ctx.session.name = ctx.message.text;
-      console.log(`Имя получено: ${ctx.session.name}`);
-      ctx.reply("Отлично! Теперь, пожалуйста, введите свою дату рождения в формате ДД.ММ.ГГГГ.");
-      ctx.session.stage = "awaiting_dob";
-      break;
-
-    case "awaiting_dob":
-      ctx.session.dob = ctx.message.text;
-      console.log(`Дата рождения получена: ${ctx.session.dob}`);
-      await saveUserData(ctx.from.id, ctx.session.name, ctx.session.dob);
-
-      await ctx.replyWithHTML(`Спасибо, ${ctx.session.name}! Теперь выберите, какие напитки вы предпочитаете (можно выбрать несколько):`,
-        Markup.inlineKeyboard([
-          Markup.button.callback("Чай", "drink_tea"),
-          Markup.button.callback("Кофе", "drink_coffee"),
-          Markup.button.callback("Сок", "drink_juice"),
-          Markup.button.callback("Вода", "drink_water"),
-          Markup.button.callback("Другое", "drink_other"),
-          Markup.button.callback("Ок", "confirm_drinks")
-        ])
-      );
-
-      ctx.session.stage = "awaiting_drinks";
-      break;
-
-    default:
-      await sendToGPT(ctx);
-      break;
-  }
-});
-
-bot.action(["drink_tea", "drink_coffee", "drink_juice", "drink_water", "drink_other"], async (ctx) => {
-  const drink = ctx.callbackQuery.data.split("_")[1];
-  if (!ctx.session.drinks) {
-    ctx.session.drinks = [drink];
+  const userId = ctx.from.id;
+  const isAuthorized = await checkUserAuth(userId);
+  if (isAuthorized) {
+    await ctx.reply('Вы уже авторизованы.');
   } else {
-    if (!ctx.session.drinks.includes(drink)) {
-      ctx.session.drinks.push(drink);
-    }
+    await ctx.reply('Привет! Пожалуйста, укажите ваше имя:');
+    ctx.session.stage = 'awaiting_name';
   }
 });
 
-bot.action("confirm_drinks", async (ctx) => {
-  if (!ctx.session.drinks || ctx.session.drinks.length === 0) {
-    await ctx.reply("Вы не выбрали ни одного напитка.");
+
+bot.command("gallery", async (ctx) => {
+  try {
+    const userId = ctx.from.id.toString();
+    const photos = await getPhotosFromGallery(userId);
+
+    if (photos.length === 0) {
+      await ctx.reply('В вашей галерее пока нет фотографий.');
+      return;
+    }
+
+    for (const fileId of photos) {
+      const shortId = uuidv4(); // Генерируем короткий идентификатор
+      await db.collection('photo_mappings').doc(shortId).set({ fileId }); // Сохраняем соответствие в базе данных
+      await ctx.replyWithPhoto(fileId, Markup.inlineKeyboard([
+        Markup.button.callback('Удалить', `delete_${shortId}`) // Используем короткий идентификатор в данных callback
+      ]));
+    }
+  } catch (error) {
+    console.error("Ошибка при выполнении команды /gallery: ", error);
+    await ctx.reply('Произошла ошибка при попытке показать галерею. Пожалуйста, попробуйте позже.');
+  }
+});
+
+
+bot.on('text', async (ctx) => {
+  if (ctx.session.stage === 'awaiting_name') {
+    ctx.session.name = ctx.message.text;
+    await ctx.reply('Отлично! Теперь укажите вашу дату рождения в формате ДД.ММ.ГГГГ:');
+    ctx.session.stage = 'awaiting_dob';
+  } else if (ctx.session.stage === 'awaiting_dob') {
+    ctx.session.dob = ctx.message.text;
+    await saveUserAuth(ctx.from.id, ctx.session.name, ctx.session.dob);
+    await ctx.reply('Вы успешно авторизованы!');
+    delete ctx.session.stage;
+    await ctx.reply('Теперь вы можете создать свою галерею фотографий. Нажмите кнопку ниже, чтобы начать.', 
+      Markup.inlineKeyboard([
+        Markup.button.callback('Создать галерею', 'create_gallery')
+      ])
+    );
+  } else if (ctx.session.stage === 'gpt_bot_mode') {
+    await sendToGPT(ctx);
+  }
+});
+
+bot.action('create_gallery', async (ctx) => {
+  const userId = ctx.from.id;
+  await createPhotoGallery(userId);
+  await ctx.reply('Галерея фотографий успешно создана! Теперь вы можете загружать свои фотографии.');
+});
+
+bot.action(/^delete_(.+)$/, async (ctx) => {
+  const shortId = ctx.match[1];
+  const doc = await db.collection('photo_mappings').doc(shortId).get();
+  if (!doc.exists) {
+    await ctx.answerCbQuery('Не удалось найти фотографию для удаления.');
     return;
   }
 
-  const drinksTextConfirmed = ctx.session.drinks.join(", ");
-  console.log(`Вы выбрали ${drinksTextConfirmed}`)
-  await ctx.reply(`Вы выбрали ${drinksTextConfirmed}. Теперь вы можете начать общение с GPT-ботом, нажав кнопку "GPT-бот".`,
-  
-    Markup.inlineKeyboard([
-      Markup.button.callback("GPT-бот", "call_gpt_bot")
-    ])
-    
-  );
-  delete ctx.session.stage;
+  const { fileId } = doc.data();
+  const userId = ctx.from.id.toString();
+  await removePhotoFromGallery(userId, fileId);
+  await ctx.answerCbQuery('Фотография удалена из галереи.');
+  await ctx.deleteMessage();
 });
 
 
-
-
-
-bot.action("call_gpt_bot", async (ctx) => {
-  await sendToGPT(ctx);
-});
-
-let lastRequestTime = 0;
-async function saveUserData(userId, name, dob) {
+async function saveUserAuth(userId, name, dob) {
   try {
-    await db.collection("users").doc(userId.toString()).set({
+    await db.collection('users').doc(userId.toString()).set({
       name: name,
-      dob: dob
+      dob: dob,
+      authorized: true
     });
-    console.log("Данные пользователя сохранены в Firebase.");
+    console.log('Данные пользователя сохранены в Firebase.');
   } catch (error) {
-    console.error("Ошибка при сохранении данных пользователя в Firebase:", error);
+    console.error('Ошибка при сохранении данных пользователя в Firebase:', error);
   }
 }
+
+async function checkUserAuth(userId) {
+  try {
+    const userDoc = await db.collection('users').doc(userId.toString()).get();
+    return userDoc.exists && userDoc.data().authorized;
+  } catch (error) {
+    console.error('Ошибка при проверке данных аутентификации пользователя:', error);
+    return false;
+  }
+}
+
+async function createPhotoGallery(userId) {
+  try {
+    await db.collection('photo_galleries').doc(userId.toString()).set({
+      photos: []
+    });
+    console.log('Галерея фотографий создана для пользователя', userId);
+  } catch (error) {
+    console.error('Ошибка при создании галереи фотографий:', error);
+  }
+}
+
+
+
+
+
+async function addPhotoToGallery(userId, fileId) {
+  try {
+    await db.collection('photo_galleries').doc(userId.toString()).update({
+      photos: admin.firestore.FieldValue.arrayUnion(fileId)
+    });
+    console.log('Фотография успешно добавлена в галерею для пользователя', userId);
+  } catch (error) {
+    console.error('Ошибка при добавлении фотографии в галерею:', error);
+  }
+}
+
+async function getPhotosFromGallery(userId) {
+  try {
+    const doc = await db.collection('photo_galleries').doc(userId.toString()).get();
+    if (doc.exists) {
+      const data = doc.data();
+      return data.photos; // Просто возвращаем массив file_id
+    } else {
+      console.log('Для пользователя', userId, 'галерея фотографий не найдена.');
+      return [];
+    }
+  } catch (error) {
+    console.error('Ошибка при получении фотографий из галереи:', error);
+    return [];
+  }
+}
+
+async function removePhotoFromGallery(userId, fileId) {
+  try {
+    await db.collection('photo_galleries').doc(userId.toString()).update({
+      photos: admin.firestore.FieldValue.arrayRemove(fileId)
+    });
+    console.log('Фотография успешно удалена из галереи для пользователя', userId);
+  } catch (error) {
+    console.error('Ошибка при удалении фотографии из галереи:', error);
+    throw error; // Перебросить ошибку для последующей обработки
+  }
+}
+
+
+
+bot.on('photo', async (ctx) => {
+  const userId = ctx.from.id;
+  // Используйте file_id последней (самой большой) фотографии в массиве
+  const fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+  
+  await addPhotoToGallery(userId, fileId); // Сохраняем file_id в базе данных
+  try {
+    await ctx.replyWithPhoto(fileId); // Отправляем фотографию обратно пользователю для подтверждения
+    await ctx.reply('Фотография успешно добавлена в вашу галерею!');
+  } catch (error) {
+    console.error('Ошибка при отправке фото:', error);
+    await ctx.reply('Произошла ошибка при отправке фотографии.');
+  }
+});
+
+
+
+let lastRequestTime = 0;
+
+
 
 async function sendToGPT(ctx) {
   const GPT_BOT_API_URL = 'https://api.openai.com/v1/chat/completions';

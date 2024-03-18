@@ -21,6 +21,8 @@
     "redux": "^5.0.1",
     "telegraf": "^4.16.3",
     "telegraf-session-local": "^2.1.1",
+    "tmp": "^0.2.3",
+    "uuid": "^9.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
