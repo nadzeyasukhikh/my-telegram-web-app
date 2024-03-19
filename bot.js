@@ -51,16 +51,22 @@ bot.command("gallery", async (ctx) => {
     }
 
     for (const fileId of photos) {
-      const shortId = uuidv4(); // Генерируем короткий идентификатор
-      await db.collection('photo_mappings').doc(shortId).set({ fileId }); // Сохраняем соответствие в базе данных
+      const shortId = uuidv4(); 
+      await db.collection('photo_mappings').doc(shortId).set({ fileId }); 
       await ctx.replyWithPhoto(fileId, Markup.inlineKeyboard([
-        Markup.button.callback('Удалить', `delete_${shortId}`) // Используем короткий идентификатор в данных callback
+        Markup.button.callback('Удалить', `delete_${shortId}`) 
       ]));
     }
   } catch (error) {
     console.error("Ошибка при выполнении команды /gallery: ", error);
     await ctx.reply('Произошла ошибка при попытке показать галерею. Пожалуйста, попробуйте позже.');
   }
+});
+
+bot.command('confirm_donation', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  await setUserDonationStatus(userId, true);
+  await ctx.reply('Спасибо за ваше пожертвование! Теперь вы можете удалить фотографии без ограничений.');
 });
 
 
@@ -90,21 +96,54 @@ bot.action('create_gallery', async (ctx) => {
   await ctx.reply('Галерея фотографий успешно создана! Теперь вы можете загружать свои фотографии.');
 });
 
+
+
 bot.action(/^delete_(.+)$/, async (ctx) => {
   const shortId = ctx.match[1];
-  const doc = await db.collection('photo_mappings').doc(shortId).get();
-  if (!doc.exists) {
-    await ctx.answerCbQuery('Не удалось найти фотографию для удаления.');
+  const userId = ctx.from.id.toString();
+  const hasDonated = await getUserDonationStatus(userId);
+
+  if (!hasDonated) {
+    const donationUrl = "https://www.paypal.com/donate/?hosted_button_id=FV4566XV9VBS4";
+    await ctx.reply('Чтобы удалить фото, пожалуйста, сделайте пожертвование и введите команду /confirm_donation', Markup.inlineKeyboard([
+      Markup.button.url("Пожертвовать", donationUrl)
+    ]));
     return;
   }
 
-  const { fileId } = doc.data();
-  const userId = ctx.from.id.toString();
-  await removePhotoFromGallery(userId, fileId);
-  await ctx.answerCbQuery('Фотография удалена из галереи.');
-  await ctx.deleteMessage();
+  const doc = await db.collection('photo_mappings').doc(shortId).get();
+  if (doc.exists) {
+    const { fileId } = doc.data();
+    await removePhotoFromGallery(userId, fileId);
+    await ctx.reply('Фотография была успешно удалена.');
+  } else {
+    await ctx.reply('Не удалось найти фотографию для удаления.');
+  }
 });
 
+async function setUserDonationStatus(userId, hasDonated) {
+  try {
+    await db.collection('users').doc(userId).set({
+      hasDonated: hasDonated
+    }, { merge: true });
+    console.log('Статус пожертвования пользователя обновлен.');
+  } catch (error) {
+    console.error('Ошибка при обновлении статуса пожертвования пользователя:', error);
+  }
+}
+
+async function getUserDonationStatus(userId) {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (userDoc.exists && userDoc.data().hasDonated) {
+      return userDoc.data().hasDonated;
+    }
+    return false;
+  } catch (error) {
+    console.error('Ошибка при получении статуса пожертвования пользователя:', error);
+    return false;
+  }
+}
 
 async function saveUserAuth(userId, name, dob) {
   try {
@@ -179,7 +218,7 @@ async function removePhotoFromGallery(userId, fileId) {
     console.log('Фотография успешно удалена из галереи для пользователя', userId);
   } catch (error) {
     console.error('Ошибка при удалении фотографии из галереи:', error);
-    throw error; // Перебросить ошибку для последующей обработки
+    throw error; 
   }
 }
 
@@ -187,12 +226,12 @@ async function removePhotoFromGallery(userId, fileId) {
 
 bot.on('photo', async (ctx) => {
   const userId = ctx.from.id;
-  // Используйте file_id последней (самой большой) фотографии в массиве
+  
   const fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
   
-  await addPhotoToGallery(userId, fileId); // Сохраняем file_id в базе данных
+  await addPhotoToGallery(userId, fileId); 
   try {
-    await ctx.replyWithPhoto(fileId); // Отправляем фотографию обратно пользователю для подтверждения
+    await ctx.replyWithPhoto(fileId); 
     await ctx.reply('Фотография успешно добавлена в вашу галерею!');
   } catch (error) {
     console.error('Ошибка при отправке фото:', error);
